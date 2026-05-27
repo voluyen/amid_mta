@@ -650,8 +650,7 @@ def main():
 
     if args.teacher_model_path is not None:
         teacher_model = get_teacher_model(args, device)
-        if teacher_model.config.vocab_size > model.config.vocab_size:
-            model.resize_token_embeddings(teacher_model.config.vocab_size)
+        teacher_model.resize_token_embeddings(model.config.vocab_size)
     else:
         teacher_model = None
 
