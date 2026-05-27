@@ -655,12 +655,13 @@ def main():
         teacher_model = None
 
     if teacher_model is not None and getattr(args, "w_span_loss", 0) > 0 and getattr(args, "teacher_layer_mapping", None):
-        if args.model_type == 'gpt2':
-            teacher_hidden_size = teacher_model.config.n_embd
-            student_hidden_size = model.config.n_embd
-        else:
-            teacher_hidden_size = teacher_model.config.hidden_size
-            student_hidden_size = model.config.hidden_size
+        def _get_hidden_size(cfg):
+            for attr in ("hidden_size", "n_embd", "d_model"):
+                if hasattr(cfg, attr):
+                    return getattr(cfg, attr)
+            raise AttributeError(f"config {type(cfg).__name__} has no hidden-size attribute")
+        teacher_hidden_size = _get_hidden_size(teacher_model.config)
+        student_hidden_size = _get_hidden_size(model.config)
 
         projector_list = nn.ModuleList()
         for _ in range(len(args.teacher_layer_mapping)):
