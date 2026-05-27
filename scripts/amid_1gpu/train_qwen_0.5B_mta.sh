@@ -4,7 +4,7 @@ GPUS=(0)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
-MASTER_PORT=66$(($RANDOM%90+10))
+MASTER_PORT=67$(($RANDOM%90+10))
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
@@ -26,7 +26,7 @@ DATA_DIR="${BASE_PATH}/processed_data/dolly/full/qwen/"
 # hp
 BATCH_SIZE=16
 LR=1e-4
-GRAD_ACC=4
+GRAD_ACC=1
 EVAL_BATCH_SIZE=32
 # length
 MAX_LENGTH=1024

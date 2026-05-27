@@ -4,7 +4,7 @@ GPUS=(1)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
-MASTER_PORT=66$(($RANDOM%90+10))
+MASTER_PORT=68$(($RANDOM%90+10))
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
@@ -19,7 +19,7 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
 BASE_PATH=.
 CKPT_NAME="opt-1.3B"
 CKPT="facebook/opt-1.3b"
-TEACHER_CKPT_NAME="opt-1.3B"
+TEACHER_CKPT_NAME="opt-6.7B"
 TEACHER_CKPT="MiniLLM/SFT-OPT-6.7B"
 # data
 DATA_DIR="${BASE_PATH}/processed_data/dolly/full/opt/"
@@ -107,6 +107,11 @@ OPTS+=" --teacher_layer_mapping 20 23 26 29 32"
 OPTS+=" --student_layer_mapping 16 18 20 22 24"
 OPTS+=" --split_layer_mapping 0 1 5 5"
 OPTS+=" --w-span-loss 3.0"
+# peft
+OPTS+=" --peft lora"
+OPTS+=" --peft-lora-r 256"
+OPTS+=" --peft-lora-alpha 8"
+OPTS+=" --peft-lora-dropout 0.1"
 
 export NCCL_DEBUG=""
 export WANDB_DISABLED=True
