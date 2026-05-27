@@ -177,5 +177,5 @@ outputs/
 results/
 cache-*
 uv.lock
-data/
+# data/
 # processed_data/
