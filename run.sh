@@ -34,8 +34,7 @@ bash "${BASE_PATH}/install.sh"
 # install.sh chạy 'uv sync' → tạo .venv riêng, cần activate để dùng đúng packages
 source "${BASE_PATH}/.venv/bin/activate"
 
-# spaCy + English model (required by span_finetune.py)
-pip install --quiet spacy
+# Download spaCy English model (spacy đã được cài bởi uv sync)
 python -m spacy download en_core_web_sm
 
 # Đảm bảo NCCL không verbose (install.sh set trong subshell, không truyền lên)

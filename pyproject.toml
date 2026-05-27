@@ -20,7 +20,14 @@ dependencies = [
     "torch==2.9.1",
     "rouge-score",
     "rich",
-    "setuptools"
+    "setuptools",
+    "accelerate",
+    "sentencepiece",
+    "protobuf",
+    "torchtyping",
+    "fraction",
+    "jsonlines",
+    "spacy",
 ]
 
 [tool.uv]
