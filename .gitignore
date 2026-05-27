@@ -178,4 +178,4 @@ results/
 cache-*
 uv.lock
 data/
-processed_data/
+# processed_data/
