@@ -533,6 +533,12 @@ def evaluate(args, tokenizer, model, dataset: LMTrainDataset, split, epoch, devi
         for it, (model_batch, no_model_batch, gen_data) in enumerate(tqdm(dataloader, desc="Evaluating", disable=(dist.get_rank() != 0))):
             print_rank(f"{it}/{len(dataloader)}")
             dataset.move_to_device(model_batch, no_model_batch, gen_data, device)
+            if it == 0:
+                _m = model.module if hasattr(model, "module") else model
+                _emb = _m.get_input_embeddings().num_embeddings
+                _ids = model_batch["input_ids"]
+                print_rank(f"[diag] embed_rows={_emb} input_ids min={_ids.min().item()} max={_ids.max().item()} shape={tuple(_ids.shape)}")
+                assert _ids.min().item() >= 0 and _ids.max().item() < _emb, f"out-of-range token id: max={_ids.max().item()} embed_rows={_emb}"
             logits = model(**model_batch).logits
             if args.model_parallel:
                 raise NotImplementedError
