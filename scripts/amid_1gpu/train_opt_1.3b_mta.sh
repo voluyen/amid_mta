@@ -1,6 +1,6 @@
 #! /bin/bash
 
-GPUS=(0)
+GPUS=(1)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
@@ -27,7 +27,7 @@ DATA_DIR="${BASE_PATH}/processed_data/dolly/full/opt/"
 BATCH_SIZE=16
 LR=5e-4
 GRAD_ACC=1
-EVAL_BATCH_SIZE=16
+EVAL_BATCH_SIZE=32
 # length
 MAX_LENGTH=256
 # seed

@@ -27,7 +27,7 @@ DATA_DIR="${BASE_PATH}/processed_data/dolly/full/qwen/"
 BATCH_SIZE=16
 LR=1e-4
 GRAD_ACC=4
-EVAL_BATCH_SIZE=16
+EVAL_BATCH_SIZE=32
 # length
 MAX_LENGTH=1024
 # seed

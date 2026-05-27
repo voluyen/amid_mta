@@ -90,8 +90,11 @@ def get_optimizer(args, model):
         param_groups = get_optimizer_params(args, model)
 
     if getattr(model, "projectors", None) is not None:
+        projector_param_ids = {id(p) for p in model.projectors.parameters()}
+        for group in param_groups:
+            group["params"] = [p for p in group["params"] if id(p) not in projector_param_ids]
         param_groups.append({
-            "params": model.projectors.parameters(),
+            "params": list(model.projectors.parameters()),
             "lr": 5e-4
         })
 
