@@ -239,6 +239,11 @@ def add_amid_args(parser: argparse.ArgumentParser):
     group.add_argument("--amid-alpha", type=float, default=0.5)
     group.add_argument("--amid-lam", type=float, default=0.5)
 
+    group.add_argument("--teacher_layer_mapping", "--teacher-layer-mapping", type=int, nargs="+", default=None)
+    group.add_argument("--student_layer_mapping", "--student-layer-mapping", type=int, nargs="+", default=None)
+    group.add_argument("--split_layer_mapping", "--split-layer-mapping", type=int, nargs="+", default=None)
+    group.add_argument("--w-span-loss", "--w_span_loss", type=float, default=0.0)
+
     return parser
 
 
