@@ -243,6 +243,7 @@ def add_amid_args(parser: argparse.ArgumentParser):
     group.add_argument("--student_layer_mapping", "--student-layer-mapping", type=int, nargs="+", default=None)
     group.add_argument("--split_layer_mapping", "--split-layer-mapping", type=int, nargs="+", default=None)
     group.add_argument("--w-span-loss", "--w_span_loss", type=float, default=0.0)
+    group.add_argument("--entropy-weight", "--entropy_weight", action="store_true", default=False)
 
     return parser
 
