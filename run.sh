@@ -26,12 +26,7 @@ export NCCL_DEBUG=""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All dependencies installed."
 
 # ============================================================
-# All training runs use GPU 4 (configured inside each script).
-# Waves run SEQUENTIALLY; jobs WITHIN a wave run in parallel.
-#   Wave 1: gpt2-base  &  qwen-0.5B
-#   Wave 2: opt-1.3b
-#   Wave 3: ablation_word_level  &  ablation_phrase_level
-#   Wave 4: ablation_wo_weight
+# All 6 training scripts run in parallel simultaneously.
 # ============================================================
 
 FAILED=0
@@ -85,26 +80,14 @@ check_wave () {
     fi
 }
 
-# ── Wave 1: gpt2-base + qwen-0.5B (parallel, share GPU 4) ─────
-run_wave "Wave 1 (gpt2 + qwen)" \
-    "gpt2_base_mta" "scripts/amid_1gpu/train_gpt2_base_mta.sh" \
-    "qwen_0.5B_mta" "scripts/amid_1gpu/train_qwen_0.5B_mta.sh"
-check_wave
-
-# ── Wave 2: opt-1.3b (alone) ──────────────────────────────────
-run_wave "Wave 2 (opt-1.3b)" \
-    "opt_1.3b_mta" "scripts/amid_1gpu/train_opt_1.3b_mta.sh"
-check_wave
-
-# ── Wave 3: word_level + phrase_level (parallel) ──────────────
-run_wave "Wave 3 (ablation: word + phrase)" \
-    "ablation_word_level"   "scripts/amid_1gpu/ablation_word_level.sh" \
-    "ablation_phrase_level" "scripts/amid_1gpu/ablation_phrase_level.sh"
-check_wave
-
-# ── Wave 4: wo_weight (alone) ─────────────────────────────────
-run_wave "Wave 4 (ablation: wo_weight)" \
-    "ablation_wo_weight" "scripts/amid_1gpu/ablation_wo_weight.sh"
+# ── Wave 1: tất cả 6 script chạy song song ────────────────────
+run_wave "Wave 1 (all 6 jobs)" \
+    "gpt2_base_mta"        "scripts/amid_1gpu/train_gpt2_base_mta.sh" \
+    "qwen_0.5B_mta"        "scripts/amid_1gpu/train_qwen_0.5B_mta.sh" \
+    "opt_1.3b_mta"         "scripts/amid_1gpu/train_opt_1.3b_mta.sh" \
+    "ablation_word_level"  "scripts/amid_1gpu/ablation_word_level.sh" \
+    "ablation_phrase_level" "scripts/amid_1gpu/ablation_phrase_level.sh" \
+    "ablation_wo_weight"   "scripts/amid_1gpu/ablation_wo_weight.sh"
 check_wave
 
 echo ""
