@@ -25,81 +25,70 @@ export NCCL_DEBUG=""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All dependencies installed."
 
 # ============================================================
-# 2. Wave 1: 3 main training experiments in PARALLEL
-#    GPU 0 → GPT2-120M       (teacher: GPT2-1.5B)
-#    GPU 0 → Qwen1.5-0.5B    (teacher: Qwen1.5-1.8B)
-#    GPU 1 → OPT-1.3B        (teacher: OPT-6.7B)
+# All training runs use GPU 4 (configured inside each script).
+# Waves run SEQUENTIALLY; jobs WITHIN a wave run in parallel.
+#   Wave 1: gpt2-base  &  qwen-0.5B
+#   Wave 2: opt-1.3b
+#   Wave 3: ablation_word_level  &  ablation_phrase_level
+#   Wave 4: ablation_wo_weight
 # ============================================================
 
-echo ""
-echo "========================================================"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Wave 1: launching 3 main experiments in parallel..."
-echo "========================================================"
-
-bash "${BASE_PATH}/scripts/amid_1gpu/train_gpt2_base_mta.sh" \
-    > "${LOG_DIR}/gpt2_base_mta.log" 2>&1 &
-PID_GPT2=$!
-
-bash "${BASE_PATH}/scripts/amid_1gpu/train_qwen_0.5B_mta.sh" \
-    > "${LOG_DIR}/qwen_0.5B_mta.log" 2>&1 &
-PID_QWEN=$!
-
-bash "${BASE_PATH}/scripts/amid_1gpu/train_opt_1.3b_mta.sh" \
-    > "${LOG_DIR}/opt_1.3b_mta.log" 2>&1 &
-PID_OPT=$!
-
-echo "[INFO] PIDs: gpt2=$PID_GPT2  qwen=$PID_QWEN  opt=$PID_OPT"
-echo "[INFO] Logs: ${LOG_DIR}/"
-echo ""
-
-# ── Wait for each job and collect exit codes ──────────────────
 FAILED=0
 
-set +e
-wait $PID_GPT2; CODE_GPT2=$?
-wait $PID_QWEN; CODE_QWEN=$?
-wait $PID_OPT;  CODE_OPT=$?
-set -e
+run_wave () {
+    local wave_name="$1"; shift
+    local -a names=()
+    local -a pids=()
 
-[ $CODE_GPT2 -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: gpt2_base_mta (exit=$CODE_GPT2)"; FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   gpt2_base_mta"
-[ $CODE_QWEN -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: qwen_0.5B_mta  (exit=$CODE_QWEN)";  FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   qwen_0.5B_mta"
-[ $CODE_OPT  -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: opt_1.3b_mta   (exit=$CODE_OPT)";   FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   opt_1.3b_mta"
+    echo ""
+    echo "========================================================"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ${wave_name}: launching $# job(s)..."
+    echo "========================================================"
 
-# ============================================================
-# 3. Wave 2: 3 ablation experiments in PARALLEL (on gpt2-base)
-#    GPU 0 → word_level    (all 3 layers word-level)
-#    GPU 1 → phrase_level  (all 3 layers phrase-level)
-#    GPU 2 → wo_weight     (uniform mean pooling, no token weights)
-# ============================================================
-echo ""
-echo "========================================================"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Wave 2: launching 3 ablation experiments in parallel..."
-echo "========================================================"
+    # Args alternate: name script name script ...
+    while [ $# -gt 0 ]; do
+        local name="$1"
+        local script="$2"
+        shift 2
+        bash "${BASE_PATH}/${script}" > "${LOG_DIR}/${name}.log" 2>&1 &
+        local pid=$!
+        names+=("$name")
+        pids+=("$pid")
+        echo "[INFO] ${name} → PID=${pid}  log=${LOG_DIR}/${name}.log"
+    done
 
-bash "${BASE_PATH}/scripts/amid_1gpu/ablation_word_level.sh" \
-    > "${LOG_DIR}/ablation_word_level.log" 2>&1 &
-PID_AB_W=$!
+    set +e
+    local i
+    for i in "${!pids[@]}"; do
+        wait "${pids[$i]}"
+        local code=$?
+        if [ "$code" -ne 0 ]; then
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ${names[$i]} (exit=$code) — see ${LOG_DIR}/${names[$i]}.log"
+            FAILED=1
+        else
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   ${names[$i]}"
+        fi
+    done
+    set -e
+}
 
-bash "${BASE_PATH}/scripts/amid_1gpu/ablation_phrase_level.sh" \
-    > "${LOG_DIR}/ablation_phrase_level.log" 2>&1 &
-PID_AB_P=$!
+# ── Wave 1: gpt2-base + qwen-0.5B (parallel, share GPU 4) ─────
+run_wave "Wave 1 (gpt2 + qwen)" \
+    "gpt2_base_mta" "scripts/amid_1gpu/train_gpt2_base_mta.sh" \
+    "qwen_0.5B_mta" "scripts/amid_1gpu/train_qwen_0.5B_mta.sh"
 
-bash "${BASE_PATH}/scripts/amid_1gpu/ablation_wo_weight.sh" \
-    > "${LOG_DIR}/ablation_wo_weight.log" 2>&1 &
-PID_AB_WO=$!
+# ── Wave 2: opt-1.3b (alone) ──────────────────────────────────
+run_wave "Wave 2 (opt-1.3b)" \
+    "opt_1.3b_mta" "scripts/amid_1gpu/train_opt_1.3b_mta.sh"
 
-echo "[INFO] PIDs: word=$PID_AB_W  phrase=$PID_AB_P  wo_weight=$PID_AB_WO"
-echo ""
+# ── Wave 3: word_level + phrase_level (parallel) ──────────────
+run_wave "Wave 3 (ablation: word + phrase)" \
+    "ablation_word_level"   "scripts/amid_1gpu/ablation_word_level.sh" \
+    "ablation_phrase_level" "scripts/amid_1gpu/ablation_phrase_level.sh"
 
-set +e
-wait $PID_AB_W;  CODE_AB_W=$?
-wait $PID_AB_P;  CODE_AB_P=$?
-wait $PID_AB_WO; CODE_AB_WO=$?
-set -e
-
-[ $CODE_AB_W  -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ablation_word_level    (exit=$CODE_AB_W)";  FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   ablation_word_level"
-[ $CODE_AB_P  -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ablation_phrase_level  (exit=$CODE_AB_P)";  FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   ablation_phrase_level"
-[ $CODE_AB_WO -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ablation_wo_weight     (exit=$CODE_AB_WO)"; FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   ablation_wo_weight"
+# ── Wave 4: wo_weight (alone) ─────────────────────────────────
+run_wave "Wave 4 (ablation: wo_weight)" \
+    "ablation_wo_weight" "scripts/amid_1gpu/ablation_wo_weight.sh"
 
 echo ""
 echo "========================================================"
