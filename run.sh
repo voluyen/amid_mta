@@ -2,6 +2,7 @@
 set -eo pipefail
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${BASE_PATH}"   # ensure sub-scripts with BASE_PATH=. resolve correctly
 LOG_DIR="${BASE_PATH}/run_logs"
 mkdir -p "${LOG_DIR}"
 
@@ -72,23 +73,39 @@ run_wave () {
     set -e
 }
 
+# Fail-fast: abort the run if any wave reported a failure.
+check_wave () {
+    if [ $FAILED -ne 0 ]; then
+        echo ""
+        echo "========================================================"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ABORTING: a job in the previous wave failed."
+        echo "Check logs in: ${LOG_DIR}/"
+        echo "========================================================"
+        exit 1
+    fi
+}
+
 # ── Wave 1: gpt2-base + qwen-0.5B (parallel, share GPU 4) ─────
 run_wave "Wave 1 (gpt2 + qwen)" \
     "gpt2_base_mta" "scripts/amid_1gpu/train_gpt2_base_mta.sh" \
     "qwen_0.5B_mta" "scripts/amid_1gpu/train_qwen_0.5B_mta.sh"
+check_wave
 
 # ── Wave 2: opt-1.3b (alone) ──────────────────────────────────
 run_wave "Wave 2 (opt-1.3b)" \
     "opt_1.3b_mta" "scripts/amid_1gpu/train_opt_1.3b_mta.sh"
+check_wave
 
 # ── Wave 3: word_level + phrase_level (parallel) ──────────────
 run_wave "Wave 3 (ablation: word + phrase)" \
     "ablation_word_level"   "scripts/amid_1gpu/ablation_word_level.sh" \
     "ablation_phrase_level" "scripts/amid_1gpu/ablation_phrase_level.sh"
+check_wave
 
 # ── Wave 4: wo_weight (alone) ─────────────────────────────────
 run_wave "Wave 4 (ablation: wo_weight)" \
     "ablation_wo_weight" "scripts/amid_1gpu/ablation_wo_weight.sh"
+check_wave
 
 echo ""
 echo "========================================================"

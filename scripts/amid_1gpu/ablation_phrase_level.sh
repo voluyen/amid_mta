@@ -4,7 +4,7 @@ GPUS=(4)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
-MASTER_PORT=66$(($RANDOM%90+10))   # range 6610-6699
+MASTER_PORT=69$(($RANDOM%90+10))   # range 6910-6999 (distinct from word_level's 66xx for wave 3 parallel)
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
