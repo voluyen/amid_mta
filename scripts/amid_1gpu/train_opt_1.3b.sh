@@ -1,10 +1,10 @@
 #! /bin/bash
 
-GPUS=(4)
+GPUS=(3)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
-MASTER_PORT=7050
+MASTER_PORT=7020
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
@@ -38,7 +38,7 @@ AMID_DIV_ORDER="pr"
 AMID_ALPHA=0.5
 AMID_LAM=0.5
 
-SAVE_PATH="${BASE_PATH}/results/turn2/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}_mta"
+SAVE_PATH="${BASE_PATH}/results/turn2/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}"
 
 
 
@@ -105,10 +105,10 @@ OPTS+=" --amid-div-order ${AMID_DIV_ORDER}"
 OPTS+=" --amid-alpha ${AMID_ALPHA}"
 OPTS+=" --amid-lam ${AMID_LAM}"
 # mta
-OPTS+=" --teacher_layer_mapping 20 23 26 29 32"
-OPTS+=" --student_layer_mapping 16 18 20 22 24"
-OPTS+=" --split_layer_mapping 0 1 5 5"
-OPTS+=" --w-span-loss 3.0"
+# OPTS+=" --teacher_layer_mapping 20 23 26 29 32"
+# OPTS+=" --student_layer_mapping 16 18 20 22 24"
+# OPTS+=" --split_layer_mapping 0 1 5 5"
+# OPTS+=" --w-span-loss 3.0"
 # peft
 OPTS+=" --peft lora"
 OPTS+=" --peft-lora-r 256"

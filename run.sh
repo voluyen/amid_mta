@@ -81,13 +81,17 @@ check_wave () {
 }
 
 # ── Wave 1: tất cả 6 script chạy song song ────────────────────
+# GPU 2: train_qwen_0.5B (7010) + train_gpt2_base (7060)
+# GPU 3: train_opt_1.3b (7020)
+# GPU 4: train_opt_1.3b_mta (7050)
+# GPU 5: ablation_phrase_level (7030) + ablation_word_level (7040)
 run_wave "Wave 1 (all 6 jobs)" \
-    "gpt2_base_mta"        "scripts/amid_1gpu/train_gpt2_base_mta.sh" \
-    "qwen_0.5B_mta"        "scripts/amid_1gpu/train_qwen_0.5B_mta.sh" \
-    "opt_1.3b_mta"         "scripts/amid_1gpu/train_opt_1.3b_mta.sh" \
-    "ablation_word_level"  "scripts/amid_1gpu/ablation_word_level.sh" \
+    "train_qwen_0.5B"      "scripts/amid_1gpu/train_qwen_0.5B.sh" \
+    "train_gpt2_base"      "scripts/amid_1gpu/train_gpt2_base.sh" \
+    "train_opt_1.3b"       "scripts/amid_1gpu/train_opt_1.3b.sh" \
+    "train_opt_1.3b_mta"   "scripts/amid_1gpu/train_opt_1.3b_mta.sh" \
     "ablation_phrase_level" "scripts/amid_1gpu/ablation_phrase_level.sh" \
-    "ablation_wo_weight"   "scripts/amid_1gpu/ablation_wo_weight.sh"
+    "ablation_word_level"  "scripts/amid_1gpu/ablation_word_level.sh"
 check_wave
 
 echo ""

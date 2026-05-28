@@ -1,10 +1,10 @@
 #! /bin/bash
 
-GPUS=(4)
+GPUS=(2)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
-MASTER_PORT=7050
+MASTER_PORT=7010
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
@@ -17,19 +17,19 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
 
 # model
 BASE_PATH=.
-CKPT_NAME="opt-1.3B"
-CKPT="facebook/opt-1.3b"
-TEACHER_CKPT_NAME="opt-6.7B"
-TEACHER_CKPT="MiniLLM/SFT-OPT-6.7B"
+CKPT_NAME="qwen1.5-0.5B"
+CKPT="Qwen/Qwen1.5-0.5B"
+TEACHER_CKPT_NAME="qwen1.5-1.8B"
+TEACHER_CKPT="VoCuc/Qwen1.5_1.8B_SFT"
 # data
-DATA_DIR="${BASE_PATH}/processed_data/dolly/full/opt/"
+DATA_DIR="${BASE_PATH}/processed_data/dolly/full/qwen/"
 # hp
 BATCH_SIZE=16
-LR=5e-4
+LR=1e-4
 GRAD_ACC=1
 EVAL_BATCH_SIZE=32
 # length
-MAX_LENGTH=256
+MAX_LENGTH=1024
 # seed
 SEED=10
 
@@ -38,7 +38,7 @@ AMID_DIV_ORDER="pr"
 AMID_ALPHA=0.5
 AMID_LAM=0.5
 
-SAVE_PATH="${BASE_PATH}/results/turn2/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}_mta"
+SAVE_PATH="${BASE_PATH}/results/turn2/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}"
 
 
 
@@ -46,9 +46,9 @@ OPTS=""
 # model
 OPTS+=" --base-path ${BASE_PATH}"
 OPTS+=" --model-path ${CKPT}"
-OPTS+=" --model-type opt"
+OPTS+=" --model-type qwen"
 OPTS+=" --teacher-model-path ${TEACHER_CKPT}"
-OPTS+=" --teacher-model-type opt"
+OPTS+=" --teacher-model-type qwen"
 OPTS+=" --ckpt-name ${CKPT_NAME}"
 OPTS+=" --teacher-ckpt-name ${TEACHER_CKPT_NAME}"
 OPTS+=" --teacher-model-fp16"
@@ -70,7 +70,7 @@ OPTS+=" --epochs 5"
 OPTS+=" --kd-ratio 1.0"
 # length
 OPTS+=" --max-length ${MAX_LENGTH}"
-OPTS+=" --max-prompt-length 128"
+OPTS+=" --max-prompt-length 512"
 # runtime
 OPTS+=" --do-train"
 OPTS+=" --do-valid"
@@ -105,15 +105,10 @@ OPTS+=" --amid-div-order ${AMID_DIV_ORDER}"
 OPTS+=" --amid-alpha ${AMID_ALPHA}"
 OPTS+=" --amid-lam ${AMID_LAM}"
 # mta
-OPTS+=" --teacher_layer_mapping 20 23 26 29 32"
-OPTS+=" --student_layer_mapping 16 18 20 22 24"
-OPTS+=" --split_layer_mapping 0 1 5 5"
-OPTS+=" --w-span-loss 3.0"
-# peft
-OPTS+=" --peft lora"
-OPTS+=" --peft-lora-r 256"
-OPTS+=" --peft-lora-alpha 8"
-OPTS+=" --peft-lora-dropout 0.1"
+# OPTS+=" --teacher_layer_mapping 14 16 18 20 22 24"
+# OPTS+=" --student_layer_mapping 14 16 18 20 22 24"
+# OPTS+=" --split_layer_mapping 0 1 6 6"
+# OPTS+=" --w-span-loss 2.0"
 
 export NCCL_DEBUG=""
 export WANDB_DISABLED=True

@@ -1,10 +1,10 @@
 #! /bin/bash
 
-GPUS=(3)
+GPUS=(5)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
-MASTER_PORT=66$(($RANDOM%90+10))   # range 6610-6699
+MASTER_PORT=7040
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
@@ -38,7 +38,7 @@ AMID_DIV_ORDER="pr"
 AMID_ALPHA=0.5
 AMID_LAM=0.5
 
-SAVE_PATH="${BASE_PATH}/results/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}_word_level"
+SAVE_PATH="${BASE_PATH}/results/turn2/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}_word_level"
 
 
 

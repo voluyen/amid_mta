@@ -1,10 +1,10 @@
 #! /bin/bash
 
-GPUS=(4)
+GPUS=(2)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
-MASTER_PORT=7050
+MASTER_PORT=7060
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
@@ -17,17 +17,17 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
 
 # model
 BASE_PATH=.
-CKPT_NAME="opt-1.3B"
-CKPT="facebook/opt-1.3b"
-TEACHER_CKPT_NAME="opt-6.7B"
-TEACHER_CKPT="MiniLLM/SFT-OPT-6.7B"
+CKPT_NAME="gpt2-base"
+CKPT="openai-community/gpt2"
+TEACHER_CKPT_NAME="xlarge-sft"
+TEACHER_CKPT="MiniLLM/teacher-gpt2-1.5B"
 # data
-DATA_DIR="${BASE_PATH}/processed_data/dolly/full/opt/"
+DATA_DIR="${BASE_PATH}/processed_data/dolly/full/gpt2/"
 # hp
 BATCH_SIZE=16
-LR=5e-4
+LR=1e-4
 GRAD_ACC=1
-EVAL_BATCH_SIZE=32
+EVAL_BATCH_SIZE=64
 # length
 MAX_LENGTH=256
 # seed
@@ -38,7 +38,7 @@ AMID_DIV_ORDER="pr"
 AMID_ALPHA=0.5
 AMID_LAM=0.5
 
-SAVE_PATH="${BASE_PATH}/results/turn2/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}_mta"
+SAVE_PATH="${BASE_PATH}/results/turn2/${CKPT_NAME}#amid/${AMID_DIV_NAME}_${AMID_DIV_ORDER}_${AMID_ALPHA}_${AMID_LAM}_${BATCH_SIZE}_${LR}"
 
 
 
@@ -46,9 +46,7 @@ OPTS=""
 # model
 OPTS+=" --base-path ${BASE_PATH}"
 OPTS+=" --model-path ${CKPT}"
-OPTS+=" --model-type opt"
 OPTS+=" --teacher-model-path ${TEACHER_CKPT}"
-OPTS+=" --teacher-model-type opt"
 OPTS+=" --ckpt-name ${CKPT_NAME}"
 OPTS+=" --teacher-ckpt-name ${TEACHER_CKPT_NAME}"
 OPTS+=" --teacher-model-fp16"
@@ -105,15 +103,15 @@ OPTS+=" --amid-div-order ${AMID_DIV_ORDER}"
 OPTS+=" --amid-alpha ${AMID_ALPHA}"
 OPTS+=" --amid-lam ${AMID_LAM}"
 # mta
-OPTS+=" --teacher_layer_mapping 20 23 26 29 32"
-OPTS+=" --student_layer_mapping 16 18 20 22 24"
-OPTS+=" --split_layer_mapping 0 1 5 5"
-OPTS+=" --w-span-loss 3.0"
-# peft
-OPTS+=" --peft lora"
-OPTS+=" --peft-lora-r 256"
-OPTS+=" --peft-lora-alpha 8"
-OPTS+=" --peft-lora-dropout 0.1"
+# OPTS+=" --teacher_layer_mapping 24 36 48"
+# OPTS+=" --student_layer_mapping 6 9 12"
+# OPTS+=" --split_layer_mapping 0 1 3 3"
+# OPTS+=" --w-span-loss 2.0"
+
+# OPTS+=" --peft lora"
+# OPTS+=" --peft-lora-r 16"
+# OPTS+=" --peft-lora-alpha 128"
+# OPTS+=" --peft-lora-dropout 0.05"
 
 export NCCL_DEBUG=""
 export WANDB_DISABLED=True
