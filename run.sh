@@ -2,62 +2,40 @@
 set -eo pipefail
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_NAME="amid"
 LOG_DIR="${BASE_PATH}/run_logs"
 mkdir -p "${LOG_DIR}"
 
 # ============================================================
-# 1. Setup conda environment
-# ============================================================
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting up conda environment '${ENV_NAME}'..."
-
-# Load conda into current shell
-source "$(conda info --base)/etc/profile.d/conda.sh"
-
-if conda env list | grep -qE "^${ENV_NAME}[[:space:]]"; then
-    echo "[INFO] Conda env '${ENV_NAME}' already exists, skipping creation."
-else
-    echo "[INFO] Creating conda env '${ENV_NAME}' from environment.yml..."
-    conda env create -f "${BASE_PATH}/environment.yml"
-fi
-
-conda activate "${ENV_NAME}"
-echo "[INFO] Activated conda env: $(conda info --envs | grep '*' | awk '{print $1}')"
-
-# ============================================================
-# 2. Install Python dependencies
+# 1. Install Python dependencies (uv sync → creates .venv)
 # ============================================================
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing Python dependencies..."
 
 bash "${BASE_PATH}/install.sh"
 
-# install.sh chạy 'uv sync' → tạo .venv riêng, cần activate để dùng đúng packages
+# Activate the uv-managed venv created by install.sh
 source "${BASE_PATH}/.venv/bin/activate"
+echo "[INFO] Activated venv: ${BASE_PATH}/.venv (python=$(which python))"
 
-# Download spaCy English model (spacy đã được cài bởi uv sync)
+# Download spaCy English model
 python -m spacy download en_core_web_sm
 
-# Đảm bảo NCCL không verbose (install.sh set trong subshell, không truyền lên)
+# Ensure NCCL not verbose
 export NCCL_DEBUG=""
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All dependencies installed."
 
 # ============================================================
-# 3. Run 3 training experiments in PARALLEL
-#    GPU 0 → GPT2-120M  (teacher: GPT2-1.5B)
-#    GPU 1 → Qwen1.5-0.5B (teacher: Qwen1.5-1.8B)
-#    GPU 2 → OPT-1.3B   (teacher: OPT-6.7B)
+# 2. Wave 1: 3 main training experiments in PARALLEL
+#    GPU 0 → GPT2-120M       (teacher: GPT2-1.5B)
+#    GPU 0 → Qwen1.5-0.5B    (teacher: Qwen1.5-1.8B)
+#    GPU 1 → OPT-1.3B        (teacher: OPT-6.7B)
 # ============================================================
 
 echo ""
 echo "========================================================"
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Launching 3 experiments in parallel..."
-echo "  GPU 0 → gpt2_base_mta"
-echo "  GPU 0 → qwen_0.5B_mta"
-echo "  GPU 1 → opt_1.3b_mta"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Wave 1: launching 3 main experiments in parallel..."
 echo "========================================================"
 
-# Launch all 3 in background, each writing to its own log file
 bash "${BASE_PATH}/scripts/amid_1gpu/train_gpt2_base_mta.sh" \
     > "${LOG_DIR}/gpt2_base_mta.log" 2>&1 &
 PID_GPT2=$!
@@ -77,34 +55,56 @@ echo ""
 # ── Wait for each job and collect exit codes ──────────────────
 FAILED=0
 
+set +e
 wait $PID_GPT2; CODE_GPT2=$?
-if [ $CODE_GPT2 -ne 0 ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: gpt2_base_mta (exit=$CODE_GPT2) — see ${LOG_DIR}/gpt2_base_mta.log"
-    FAILED=1
-else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   gpt2_base_mta"
-fi
-
 wait $PID_QWEN; CODE_QWEN=$?
-if [ $CODE_QWEN -ne 0 ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: qwen_0.5B_mta  (exit=$CODE_QWEN)  — see ${LOG_DIR}/qwen_0.5B_mta.log"
-    FAILED=1
-else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   qwen_0.5B_mta"
-fi
+wait $PID_OPT;  CODE_OPT=$?
+set -e
 
-wait $PID_OPT; CODE_OPT=$?
-if [ $CODE_OPT -ne 0 ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: opt_1.3b_mta   (exit=$CODE_OPT)   — see ${LOG_DIR}/opt_1.3b_mta.log"
-    FAILED=1
-else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   opt_1.3b_mta"
-fi
+[ $CODE_GPT2 -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: gpt2_base_mta (exit=$CODE_GPT2)"; FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   gpt2_base_mta"
+[ $CODE_QWEN -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: qwen_0.5B_mta  (exit=$CODE_QWEN)";  FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   qwen_0.5B_mta"
+[ $CODE_OPT  -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: opt_1.3b_mta   (exit=$CODE_OPT)";   FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   opt_1.3b_mta"
+
+# ============================================================
+# 3. Wave 2: 3 ablation experiments in PARALLEL (on gpt2-base)
+#    GPU 0 → word_level    (all 3 layers word-level)
+#    GPU 1 → phrase_level  (all 3 layers phrase-level)
+#    GPU 2 → wo_weight     (uniform mean pooling, no token weights)
+# ============================================================
+echo ""
+echo "========================================================"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Wave 2: launching 3 ablation experiments in parallel..."
+echo "========================================================"
+
+bash "${BASE_PATH}/scripts/amid_1gpu/ablation_word_level.sh" \
+    > "${LOG_DIR}/ablation_word_level.log" 2>&1 &
+PID_AB_W=$!
+
+bash "${BASE_PATH}/scripts/amid_1gpu/ablation_phrase_level.sh" \
+    > "${LOG_DIR}/ablation_phrase_level.log" 2>&1 &
+PID_AB_P=$!
+
+bash "${BASE_PATH}/scripts/amid_1gpu/ablation_wo_weight.sh" \
+    > "${LOG_DIR}/ablation_wo_weight.log" 2>&1 &
+PID_AB_WO=$!
+
+echo "[INFO] PIDs: word=$PID_AB_W  phrase=$PID_AB_P  wo_weight=$PID_AB_WO"
+echo ""
+
+set +e
+wait $PID_AB_W;  CODE_AB_W=$?
+wait $PID_AB_P;  CODE_AB_P=$?
+wait $PID_AB_WO; CODE_AB_WO=$?
+set -e
+
+[ $CODE_AB_W  -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ablation_word_level    (exit=$CODE_AB_W)";  FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   ablation_word_level"
+[ $CODE_AB_P  -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ablation_phrase_level  (exit=$CODE_AB_P)";  FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   ablation_phrase_level"
+[ $CODE_AB_WO -ne 0 ] && { echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ablation_wo_weight     (exit=$CODE_AB_WO)"; FAILED=1; } || echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done:   ablation_wo_weight"
 
 echo ""
 echo "========================================================"
 if [ $FAILED -eq 0 ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] All 3 experiments completed successfully."
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] All experiments completed successfully."
 else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] One or more experiments FAILED. Check logs in: ${LOG_DIR}/"
     exit 1

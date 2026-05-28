@@ -244,6 +244,9 @@ def add_amid_args(parser: argparse.ArgumentParser):
     group.add_argument("--split_layer_mapping", "--split-layer-mapping", type=int, nargs="+", default=None)
     group.add_argument("--w-span-loss", "--w_span_loss", type=float, default=0.0)
     group.add_argument("--entropy-weight", "--entropy_weight", action="store_true", default=False)
+    group.add_argument("--no-span-weight", "--no_span_weight", action="store_true", default=False,
+                       help="Ablation: disable token importance weighting in span aggregation "
+                            "(use uniform mean pooling instead).")
 
     return parser
 

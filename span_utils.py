@@ -111,22 +111,28 @@ def prepare_span_indices_and_weights(t_layer_weights, s_layer_weights, attention
             Span_IDs, Max_Spans, Batch_ID_for_Spans, T_Entropy_Weight_all)
 
 def get_span_loss(projectors, attention_mask, s_hidden_states, t_hidden_states, offsets_mapping,
-                  spans_offsets, teacher_layer_mapping, student_layer_mapping, w_t_entropy=None):
+                  spans_offsets, teacher_layer_mapping, student_layer_mapping, w_t_entropy=None,
+                  no_span_weight=False):
 
     if not teacher_layer_mapping or not student_layer_mapping:
         return torch.tensor(0.0, device=attention_mask.device)
 
-    t_layer_weights = []
-    s_layer_weights = []
-    for i in teacher_layer_mapping:
-        weights = compute_token_weights(t_hidden_states[i], attention_mask)  # (B, SeqLen)
-        t_layer_weights.append(weights)
-    for i in student_layer_mapping:
-        weights = compute_token_weights(s_hidden_states[i], attention_mask)  # (B, SeqLen)
-        s_layer_weights.append(weights)
+    if no_span_weight:
+        uniform = attention_mask.float()  # (B, SeqLen) -- 1 on valid tokens, 0 on padding
+        t_layer_weights = uniform.unsqueeze(0).expand(len(teacher_layer_mapping), -1, -1).contiguous()
+        s_layer_weights = uniform.unsqueeze(0).expand(len(student_layer_mapping), -1, -1).contiguous()
+    else:
+        t_layer_weights = []
+        s_layer_weights = []
+        for i in teacher_layer_mapping:
+            weights = compute_token_weights(t_hidden_states[i], attention_mask)  # (B, SeqLen)
+            t_layer_weights.append(weights)
+        for i in student_layer_mapping:
+            weights = compute_token_weights(s_hidden_states[i], attention_mask)  # (B, SeqLen)
+            s_layer_weights.append(weights)
 
-    t_layer_weights = torch.stack(t_layer_weights)  # (num_layers, B, SeqLen)
-    s_layer_weights = torch.stack(s_layer_weights)  # (num_layers, B, SeqLen)
+        t_layer_weights = torch.stack(t_layer_weights)  # (num_layers, B, SeqLen)
+        s_layer_weights = torch.stack(s_layer_weights)  # (num_layers, B, SeqLen)
 
     (All_Indices, 
      T_Token_Weights_all, 
@@ -186,18 +192,21 @@ def compute_overall_span_loss(projectors, attention_mask, s_logits, t_logits,
         t_entropy = -(t_probs * torch.log(t_probs + 1e-8)).sum(dim=-1)
         w_t_entropy = 1 - t_entropy / math.log(t_logits.size(-1))   # [0,1]
 
-    
+    no_span_weight = getattr(args, "no_span_weight", False)
+
     s_word_mapping = args.student_layer_mapping[args.split_layer_mapping[0]:args.split_layer_mapping[1]]
     t_word_mapping = args.teacher_layer_mapping[args.split_layer_mapping[0]:args.split_layer_mapping[1]]
     word_projectors = projectors[args.split_layer_mapping[0]:args.split_layer_mapping[1]]
-    word_loss = get_span_loss(word_projectors, attention_mask, s_hidden_states, t_hidden_states, 
-                              offsets_mapping, words_offsets, t_word_mapping, s_word_mapping, w_t_entropy)
-    
+    word_loss = get_span_loss(word_projectors, attention_mask, s_hidden_states, t_hidden_states,
+                              offsets_mapping, words_offsets, t_word_mapping, s_word_mapping, w_t_entropy,
+                              no_span_weight=no_span_weight)
+
     s_span_mapping = args.student_layer_mapping[args.split_layer_mapping[1]:args.split_layer_mapping[2]]
     t_span_mapping = args.teacher_layer_mapping[args.split_layer_mapping[1]:args.split_layer_mapping[2]]
     span_projectors = projectors[args.split_layer_mapping[1]:args.split_layer_mapping[2]]
-    span_loss = get_span_loss(span_projectors, attention_mask, s_hidden_states, t_hidden_states, 
-                              offsets_mapping, spans_offsets, t_span_mapping, s_span_mapping, w_t_entropy)
+    span_loss = get_span_loss(span_projectors, attention_mask, s_hidden_states, t_hidden_states,
+                              offsets_mapping, spans_offsets, t_span_mapping, s_span_mapping, w_t_entropy,
+                              no_span_weight=no_span_weight)
     
     overall_loss = (word_loss + span_loss) / len(args.student_layer_mapping)
     return overall_loss
