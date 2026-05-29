@@ -1,6 +1,6 @@
 #! /bin/bash
 
-GPUS=(5)
+GPUS=(3)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
@@ -29,7 +29,7 @@ LR=1e-4
 GRAD_ACC=1
 EVAL_BATCH_SIZE=32
 # length
-MAX_LENGTH=1024
+MAX_LENGTH=256
 # seed
 SEED=10
 
@@ -70,7 +70,7 @@ OPTS+=" --epochs 5"
 OPTS+=" --kd-ratio 1.0"
 # length
 OPTS+=" --max-length ${MAX_LENGTH}"
-OPTS+=" --max-prompt-length 512"
+OPTS+=" --max-prompt-length 128"
 # runtime
 OPTS+=" --do-train"
 OPTS+=" --do-valid"
