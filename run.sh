@@ -26,7 +26,7 @@ export NCCL_DEBUG=""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All dependencies installed."
 
 # ============================================================
-# Run train_qwen_0.5B and train_qwen_0.5B_mta in parallel.
+# Run train_opt_1.3b (GPU 4) and train_opt_1.3b_mta (GPU 5) in parallel.
 # ============================================================
 
 FAILED=0
@@ -80,10 +80,10 @@ check_wave () {
     fi
 }
 
-# ── Wave 1: 2 script Qwen 0.5B chạy song song ────────────────
-run_wave "Wave 1 (Qwen 0.5B baseline + MTA)" \
-    "train_qwen_0.5B"      "scripts/amid_1gpu/train_qwen_0.5B.sh" \
-    "train_qwen_0.5B_mta"  "scripts/amid_1gpu/train_qwen_0.5B_mta.sh"
+# ── Wave 1: OPT-1.3B baseline (GPU 4) + MTA (GPU 5) song song ─
+run_wave "Wave 1 (OPT-1.3B baseline + MTA)" \
+    "train_opt_1.3b"      "scripts/amid_1gpu/train_opt_1.3b.sh" \
+    "train_opt_1.3b_mta"  "scripts/amid_1gpu/train_opt_1.3b_mta.sh"
 check_wave
 
 echo ""

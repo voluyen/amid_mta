@@ -1,6 +1,6 @@
 #! /bin/bash
 
-GPUS=(4)
+GPUS=(5)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
@@ -111,8 +111,8 @@ OPTS+=" --split_layer_mapping 0 1 5 5"
 OPTS+=" --w-span-loss 3.0"
 # peft
 OPTS+=" --peft lora"
-OPTS+=" --peft-lora-r 256"
-OPTS+=" --peft-lora-alpha 8"
+OPTS+=" --peft-lora-r 16"
+OPTS+=" --peft-lora-alpha 64"
 OPTS+=" --peft-lora-dropout 0.1"
 
 export NCCL_DEBUG=""
