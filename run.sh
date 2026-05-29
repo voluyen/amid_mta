@@ -80,10 +80,11 @@ check_wave () {
     fi
 }
 
-# ── Wave 1: OPT-1.3B baseline (GPU 4) + MTA (GPU 5) song song ─
-run_wave "Wave 1 (OPT-1.3B baseline + MTA)" \
-    "train_opt_1.3b"      "scripts/amid_1gpu/train_opt_1.3b.sh" \
-    "train_opt_1.3b_mta"  "scripts/amid_1gpu/train_opt_1.3b_mta.sh"
+# ── Wave 1: OPT-1.3B (GPU 4+5) + GPT-2 MTA (GPU 6) song song ─
+run_wave "Wave 1 (OPT-1.3B baseline + MTA, GPT-2 MTA)" \
+    "train_opt_1.3b"        "scripts/amid_1gpu/train_opt_1.3b.sh" \
+    "train_opt_1.3b_mta"    "scripts/amid_1gpu/train_opt_1.3b_mta.sh" \
+    "train_gpt2_base_mta"   "scripts/amid_1gpu/train_gpt2_base_mta.sh"
 check_wave
 
 echo ""

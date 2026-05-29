@@ -1,6 +1,6 @@
 #! /bin/bash
 
-GPUS=(3)
+GPUS=(6)
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 MASTER_ADDR=localhost
@@ -103,9 +103,9 @@ OPTS+=" --amid-div-order ${AMID_DIV_ORDER}"
 OPTS+=" --amid-alpha ${AMID_ALPHA}"
 OPTS+=" --amid-lam ${AMID_LAM}"
 # mta
-OPTS+=" --teacher_layer_mapping 24 36 48"
-OPTS+=" --student_layer_mapping 6 9 12"
-OPTS+=" --split_layer_mapping 0 1 3 3"
+OPTS+=" --teacher_layer_mapping 24 32 40 48"
+OPTS+=" --student_layer_mapping 6 8 10 12"
+OPTS+=" --split_layer_mapping 0 1 4 4"
 OPTS+=" --w-span-loss 2.0"
 
 # OPTS+=" --peft lora"
